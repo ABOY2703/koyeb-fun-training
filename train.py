@@ -1,4 +1,11 @@
 import os
+import torch
+
+# FIX: Manual patch for the 'register_pytree_node' error
+import torch.utils._pytree as _pt
+if not hasattr(_pt, 'register_pytree_node'):
+    _pt.register_pytree_node = _pt._register_pytree_node
+
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer
 from huggingface_hub import login
@@ -9,7 +16,6 @@ if hf_token:
     login(token=hf_token)
 
 # CONFIG
-# We use distilgpt2 because it's fast, small, and fun for testing.
 MODEL_NAME = "distilgpt2" 
 DATASET_NAME = "Abirate/english_quotes"
 REPO_NAME = "my-fun-quote-generator"
@@ -23,19 +29,20 @@ def tokenize_function(examples):
     return tokenizer(examples["quote"], padding="max_length", truncation=True, max_length=128)
 
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
-small_train = tokenized_datasets["train"].shuffle(seed=42).select(range(500)) # Small for speed
+small_train = tokenized_datasets["train"].shuffle(seed=42).select(range(500))
 
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
 args = TrainingArguments(
     output_dir="./results",
-    per_device_train_batch_size=8,
-    num_train_epochs=3,
+    per_device_train_batch_size=4, # Lowered for extra safety
+    num_train_epochs=1,            # Set to 1 for a quick "fun" test run
     learning_rate=2e-5,
     push_to_hub=True,
     hub_model_id=REPO_NAME,
     hub_token=hf_token,
-    fp16=True, # remove if not using GPU
+    fp16=True, 
+    logging_steps=10,
 )
 
 trainer = Trainer(
