@@ -1,5 +1,5 @@
-torch
-transformers
+torch>=2.2.0
+transformers==4.40.0
 datasets
 accelerate
 huggingface_hub
